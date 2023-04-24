@@ -11,13 +11,16 @@ def main():
     start = 0*60*60  # 0:00
     end = 36*60*60  # 36:00 because data is retarded
 
+    # Change pt.get_representative_feed to get all service_ids instead of just some
+    
+
     G = pt.load_feed_as_graph(feed, start, end)
 
     # Relabels nodes by removing 04LSS_ from each node
     relabel_dic = {node:node[6:] for node in G.nodes()}
     G = nx.relabel_nodes(G, relabel_dic, copy=False)
 
-    with open("rejsekort_graph_cleaned.gpickle", "wb") as f:
+    with open("rejsekort_graph_test.gpickle", "wb") as f:
         pickle.dump(G, f)
 
 if __name__ == "__main__":
