@@ -2,3 +2,5 @@ install/
 data/
 docker.txt
 /.ipynb_checkpoints
+!data/shapely
+!data/shapely/*
