@@ -37,6 +37,8 @@ def get_nodes_with_regions_df(shapefile="kommuneinddeling/kommuneinddeling.shp")
     regions_df = gp.read_file(shapefile)
     nodes_df = get_node_df(get_cleaned_graph())
     nodes_with_regions = gp.sjoin(nodes_df, regions_df, how="left", op="within")
+    nodes_with_regions["node_id"] = nodes_with_regions["node_id"].astype(int)
+
     return nodes_with_regions
 
 
