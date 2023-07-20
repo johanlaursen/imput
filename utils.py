@@ -96,7 +96,12 @@ def get_municipality_flow():
     df_combined['destination_centroid'] = df_combined['destination_id'].map(m_centroid_dict)
     
     return df_combined
-    
+
+def get_election_df():
+    df = pd.read_excel("data/cleaned_election_data.xlsx")
+    df.drop(columns=["Unnamed: 0"], inplace=True)
+    return df
+
 KOMMUNE_CODE_NAME_DICT = {
     "0101": "København",
     "0147": "Frederiksberg",
