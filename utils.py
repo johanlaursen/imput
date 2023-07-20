@@ -43,7 +43,10 @@ def get_nodes_with_regions_df(shapefile="kommuneinddeling/kommuneinddeling.shp")
 
     return nodes_with_regions
 
-
+def get_election_df():
+    df = pd.read_excel("data/cleaned_election_data.xlsx")
+    df.drop(columns=["Unnamed: 0"], inplace=True)
+    return df
 
 KOMMUNE_CODE_NAME_DICT = {
     "0101": "København",
