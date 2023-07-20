@@ -4,3 +4,7 @@ docker.txt
 /.ipynb_checkpoints
 !data/shapely
 !data/shapely/*
+lecture04.ipynb
+exercise04_solution.ipynb
+imd_dist10km.gwt
+imd_queen.gal
