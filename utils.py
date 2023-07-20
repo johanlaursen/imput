@@ -43,8 +43,60 @@ def get_nodes_with_regions_df(shapefile="kommuneinddeling/kommuneinddeling.shp")
 
     return nodes_with_regions
 
+def get_municipality_flow():
+    """ Combine trip information, stop coordinates, municipality shapefiles and election data
+    to create a dataframe containing flow and distance between municipalities plus voting age population"""
+    # Load required data
+    df = pd.read_csv('data/jan_2019.csv', encoding = 'unicode_escape')
+    stops = pd.read_csv('data/stops.txt')
+    shapefile = "data/DAGI/kommuneinddeling/kommuneinddeling.shp"
+    election_df = pd.read_csv('data/cleaned_election_data.csv')
+    
+    kommuner_df = gp.read_file(shapefile).to_crs('EPSG:4326') #convert to coordinates as in the stops df
+    kommuner_df['kommunekod'] = kommuner_df['kommunekod'].astype(int)
+    stops = gp.GeoDataFrame(stops, geometry=gp.points_from_xy(stops.stop_lon, stops.stop_lat), crs = 'EPSG:4326')
+    stop_kommune = gp.sjoin(stops, kommuner_df, how="inner", op='intersects').set_index('stop_id')
+    municipalities_df = stop_kommune['kommunekod']
+    id2municipality = municipalities_df.to_dict()
+    
+    df['StartStopPointNr'] = df['StartStopPointNr'].map(id2municipality)
+    df['SlutStopPointNr'] = df['SlutStopPointNr'].map(id2municipality)
+    df = df.dropna()
+    df['StartStopPointNr'] = df['StartStopPointNr'].astype(int)
+    df['SlutStopPointNr'] = df['SlutStopPointNr'].astype(int)
+    df['SUM_of_Personrejser'] = df['SUM_of_Personrejser'].astype(int)
+    municipality_flow = df.drop('RejseUge', axis=1).groupby(['StartStopPointNr', 'SlutStopPointNr']).sum('SUM_of_Personrejser').reset_index()
+    municipality_centroids = kommuner_df.to_crs('EPSG:3035').set_index('kommunekod').centroid #equal area projection
+    m_centroid_dict = municipality_centroids.to_dict()
+    
+    municipality_flow = municipality_flow.rename(columns={"StartStopPointNr": "origin_id", "SlutStopPointNr": "destination_id", "SUM_of_Personrejser": "flow"})
 
+    # Fill all municipality pairs not found with 0 flow
+    ids = pd.unique(municipality_flow[['origin_id', 'destination_id']].values.ravel('K'))
+    new_df = pd.DataFrame({'origin_id': np.repeat(ids, len(ids)), 'destination_id': np.tile(ids, len(ids))})
+    # Merge new_df with df to get the corresponding flow values
+    municipality_flow = pd.merge(new_df, municipality_flow, on=['origin_id', 'destination_id'], how='left')
+    # Replace NaN values in the flow column with 0
+    municipality_flow['flow'].fillna(0, inplace=True)
+    municipality_population = election_df.groupby('Kommune').sum('Persons18')['Persons18'].reset_index().rename(columns = {'Persons18': 'population'})
+    # Merge with origin
+    df_combined = pd.merge(municipality_flow, municipality_population, how='left', 
+                  left_on='origin_id', right_on='Kommune')
+    df_combined = df_combined.rename(columns = {'population': 'origin_population'})
+    df_combined = df_combined.drop(columns=['Kommune'])  # drop the extra Kommune column
 
+    # Merge with destination
+    df_combined = pd.merge(df_combined, municipality_population, how='left', 
+                  left_on='destination_id', right_on='Kommune')
+    df_combined = df_combined.rename(columns = {'population': 'destination_population'})
+    df_combined = df_combined.drop(columns=['Kommune'])  # drop the extra Kommune column
+    df_combined['flow'] = df_combined['flow'].astype(int)
+    df_combined['distance'] = df_combined.apply(lambda row: m_centroid_dict[int(row['origin_id'])].distance(m_centroid_dict[int(row['destination_id'])]), axis=1)
+    df_combined['origin_centroid'] = df_combined['origin_id'].map(m_centroid_dict)
+    df_combined['destination_centroid'] = df_combined['destination_id'].map(m_centroid_dict)
+    
+    return df_combined
+    
 KOMMUNE_CODE_NAME_DICT = {
     "0101": "København",
     "0147": "Frederiksberg",
