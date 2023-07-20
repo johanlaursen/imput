@@ -34,6 +34,8 @@ def get_node_df(G):
     return nodes_df
 
 def get_nodes_with_regions_df(shapefile="kommuneinddeling/kommuneinddeling.shp"):
+    """Other options are: landsdel/landsdel.shp"""
+    shapefile = "data/shapely/" + shapefile
     regions_df = gp.read_file(shapefile)
     nodes_df = get_node_df(get_cleaned_graph())
     nodes_with_regions = gp.sjoin(nodes_df, regions_df, how="left", op="within")
