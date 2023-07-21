@@ -14,6 +14,7 @@ from tqdm import tqdm
 from sklearn.neighbors import BallTree
 import math
 
+EDUCATION_COLUMN_NAMES =  ["Grundskole","Gymnasial","Erhvervsfaglig","Kort_vider","Mellemlang_vider","Bachelor","Lang_vider","Uoplyst"]
 
 def get_cleaned_graph():
     with open('rejsekort_graph_cleaned.gpickle', 'rb') as f:
@@ -101,6 +102,29 @@ def get_election_df():
     df = pd.read_excel("data/cleaned_election_data.xlsx")
     df.drop(columns=["Unnamed: 0"], inplace=True)
     return df
+
+def get_election_by_area(area="Kommune"):
+    assert area in ["Kommune", "Storkreds"]
+    df_elec = get_election_df()
+    columns_to_keep = [area, "Persons18", "Persons65"] + EDUCATION_COLUMN_NAMES + ["with_children", "without_children", "Income_Mean"]
+    df_elec = df_elec[columns_to_keep]
+    df_elec = df_elec.groupby(area).agg({
+        "Persons18": "sum",
+        "Persons65": "sum",
+        EDUCATION_COLUMN_NAMES[0]: "mean",
+        EDUCATION_COLUMN_NAMES[1]: "mean",
+        EDUCATION_COLUMN_NAMES[2]: "mean",
+        EDUCATION_COLUMN_NAMES[3]: "mean",
+        EDUCATION_COLUMN_NAMES[4]: "mean",
+        EDUCATION_COLUMN_NAMES[5]: "mean",
+        EDUCATION_COLUMN_NAMES[6]: "mean",
+        EDUCATION_COLUMN_NAMES[7]: "mean",
+        "with_children": "sum",
+        "without_children": "sum",
+        "Income_Mean": "mean",
+            }).reset_index()
+    df_elec["high_education"] = df_elec[EDUCATION_COLUMN_NAMES[3:7]].sum(axis=1)
+    return df_elec
 
 KOMMUNE_CODE_NAME_DICT = {
     "0101": "København",
