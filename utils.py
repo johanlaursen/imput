@@ -91,7 +91,7 @@ def get_municipality_flow():
     df_combined = df_combined.rename(columns = {'population': 'destination_population'})
     df_combined = df_combined.drop(columns=['Kommune'])  # drop the extra Kommune column
     df_combined['flow'] = df_combined['flow'].astype(int)
-    df_combined['distance'] = df_combined.apply(lambda row: m_centroid_dict[int(row['origin_id'])].distance(m_centroid_dict[int(row['destination'])]), axis=1)
+    df_combined['distance'] = df_combined.apply(lambda row: m_centroid_dict[int(row['origin'])].distance(m_centroid_dict[int(row['destination'])]), axis=1)
     df_combined['origin_centroid'] = df_combined['origin'].map(m_centroid_dict)
     df_combined['destination_centroid'] = df_combined['destination'].map(m_centroid_dict)
     
