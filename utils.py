@@ -69,31 +69,31 @@ def get_municipality_flow():
     municipality_centroids = kommuner_df.to_crs('EPSG:3035').set_index('kommunekod').centroid #equal area projection
     m_centroid_dict = municipality_centroids.to_dict()
     
-    municipality_flow = municipality_flow.rename(columns={"StartStopPointNr": "origin_id", "SlutStopPointNr": "destination_id", "SUM_of_Personrejser": "flow"})
+    municipality_flow = municipality_flow.rename(columns={"StartStopPointNr": "origin", "SlutStopPointNr": "destination", "SUM_of_Personrejser": "flow"})
 
     # Fill all municipality pairs not found with 0 flow
-    ids = pd.unique(municipality_flow[['origin_id', 'destination_id']].values.ravel('K'))
-    new_df = pd.DataFrame({'origin_id': np.repeat(ids, len(ids)), 'destination_id': np.tile(ids, len(ids))})
+    ids = pd.unique(municipality_flow[['origin', 'destination']].values.ravel('K'))
+    new_df = pd.DataFrame({'origin': np.repeat(ids, len(ids)), 'destination': np.tile(ids, len(ids))})
     # Merge new_df with df to get the corresponding flow values
-    municipality_flow = pd.merge(new_df, municipality_flow, on=['origin_id', 'destination_id'], how='left')
+    municipality_flow = pd.merge(new_df, municipality_flow, on=['origin', 'destination'], how='left')
     # Replace NaN values in the flow column with 0
     municipality_flow['flow'].fillna(0, inplace=True)
     municipality_population = election_df.groupby('Kommune').sum('Persons18')['Persons18'].reset_index().rename(columns = {'Persons18': 'population'})
     # Merge with origin
     df_combined = pd.merge(municipality_flow, municipality_population, how='left', 
-                  left_on='origin_id', right_on='Kommune')
+                  left_on='origin', right_on='Kommune')
     df_combined = df_combined.rename(columns = {'population': 'origin_population'})
     df_combined = df_combined.drop(columns=['Kommune'])  # drop the extra Kommune column
 
     # Merge with destination
     df_combined = pd.merge(df_combined, municipality_population, how='left', 
-                  left_on='destination_id', right_on='Kommune')
+                  left_on='destination', right_on='Kommune')
     df_combined = df_combined.rename(columns = {'population': 'destination_population'})
     df_combined = df_combined.drop(columns=['Kommune'])  # drop the extra Kommune column
     df_combined['flow'] = df_combined['flow'].astype(int)
-    df_combined['distance'] = df_combined.apply(lambda row: m_centroid_dict[int(row['origin_id'])].distance(m_centroid_dict[int(row['destination_id'])]), axis=1)
-    df_combined['origin_centroid'] = df_combined['origin_id'].map(m_centroid_dict)
-    df_combined['destination_centroid'] = df_combined['destination_id'].map(m_centroid_dict)
+    df_combined['distance'] = df_combined.apply(lambda row: m_centroid_dict[int(row['origin_id'])].distance(m_centroid_dict[int(row['destination'])]), axis=1)
+    df_combined['origin_centroid'] = df_combined['origin'].map(m_centroid_dict)
+    df_combined['destination_centroid'] = df_combined['destination'].map(m_centroid_dict)
     
     return df_combined
 
