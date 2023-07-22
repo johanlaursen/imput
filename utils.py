@@ -13,6 +13,12 @@ from geopy.distance import geodesic
 from tqdm import tqdm
 from sklearn.neighbors import BallTree
 import math
+import seaborn as sns
+import esda
+from splot.esda import (
+    plot_moran, moran_scatterplot, lisa_cluster, plot_local_autocorrelation,
+)
+
 
 EDUCATION_COLUMN_NAMES =  ["Grundskole","Gymnasial","Erhvervsfaglig","Kort_vider","Mellemlang_vider","Bachelor","Lang_vider","Uoplyst"]
 
@@ -126,6 +132,35 @@ def get_election_by_area(area="Kommune"):
     df_elec["high_education"] = df_elec[EDUCATION_COLUMN_NAMES[3:7]].sum(axis=1)
     return df_elec
 
+def plot_morans(VARIABLE_STD, VARIABLE_W, data):
+    f, ax = plt.subplots(1, figsize=(9, 9))
+
+    # regression plot (function from seaborn):
+    sns.regplot(x=VARIABLE_STD, y=VARIABLE_W, data=data, ci=None)
+
+    # add lines through 0,0
+    plt.axvline(0, c='k', alpha=0.5)
+    plt.axhline(0, c='k', alpha=0.5)
+
+    # OBS! The placement of the text is customized to this specific plot and the range of the axes
+    plt.text(3, 1.5, "HH", fontsize=25)
+    plt.text(3, -0.7, "HL", fontsize=25)
+    plt.text(-1, 2, "LH", fontsize=25)
+    plt.text(-1.2, -0.5, "LL", fontsize=25)
+
+    plt.show()
+
+def plot_morans_2(data, VARIABLE, wk):
+    # Calculate Moran's I
+
+    mi = esda.Moran(data[VARIABLE], wk)
+
+    print("Moran's I:", mi.I)
+
+    print("P-value for the Moran's I statistic:", mi.p_sim)
+
+    # ready-implemented function for Moran scatterplot
+    plot_moran(mi);
 KOMMUNE_CODE_NAME_DICT = {
     "0101": "København",
     "0147": "Frederiksberg",
