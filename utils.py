@@ -59,9 +59,9 @@ def get_municipality_flow():
     shapefile = "data/DAGI/kommuneinddeling/kommuneinddeling.shp"
     election_df = pd.read_csv('data/cleaned_election_data.csv')
     
-    kommuner_df = gp.read_file(shapefile).to_crs('EPSG:4326') #convert to coordinates as in the stops df
+    kommuner_df = gp.read_file(shapefile)
     kommuner_df['kommunekod'] = kommuner_df['kommunekod'].astype(int)
-    stops = gp.GeoDataFrame(stops, geometry=gp.points_from_xy(stops.stop_lon, stops.stop_lat), crs = 'EPSG:4326')
+    stops = gp.GeoDataFrame(stops, geometry=gp.points_from_xy(stops.stop_lon, stops.stop_lat), crs = 'EPSG:4326').to_crs('EPSG:25832') #convert to same crs as municipality df for join
     stop_kommune = gp.sjoin(stops, kommuner_df, how="inner", op='intersects').set_index('stop_id')
     municipalities_df = stop_kommune['kommunekod']
     id2municipality = municipalities_df.to_dict()
@@ -198,6 +198,18 @@ def get_station_density_and_distance():
     
     return station_density_coords
 
+def plot_hexbin(df):
+    # few density outliers prevent plotting
+    df['density'] = p['density'].where(p['density'] <= 32, 32)
+
+    # Create Hexbin plot with log color scale
+    hb = plt.hexbin(p['distance'], p['density'], gridsize=20, bins='log', cmap='Greens')
+    cb = plt.colorbar(hb, label='log10(N)')
+
+    plt.xlabel('Distance to bus stop (m)')
+    plt.ylabel('Population density')
+    plt.title('Density vs. Distance to bus stop')
+    plt.show()
 
 def plot_density_map(df, min_distance = 1400, min_density = 0.5, figname="figures/plot.png", dpi=300):
     shapefile = "data/DAGI/kommuneinddeling/kommuneinddeling.shp"
