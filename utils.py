@@ -198,7 +198,7 @@ def get_station_density_and_distance():
     
     return station_density_coords
 
-def plot_hexbin(df):
+def plot_hexbin(df, figname='figures/hexplot.png', dpi=600):
     # few density outliers prevent plotting
     df['density'] = p['density'].where(p['density'] <= 32, 32)
 
@@ -209,6 +209,7 @@ def plot_hexbin(df):
     plt.xlabel('Distance to bus stop (m)')
     plt.ylabel('Population density')
     plt.title('Density vs. Distance to bus stop')
+    plt.savefig(figname, dpi=dpi)
     plt.show()
 
 def plot_density_map(df, min_distance = 1400, min_density = 0.5, figname="figures/plot.png", dpi=300):
