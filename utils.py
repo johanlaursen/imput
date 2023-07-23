@@ -18,8 +18,8 @@ import esda
 from splot.esda import (
     plot_moran, moran_scatterplot, lisa_cluster, plot_local_autocorrelation,
 )
-
-
+    
+    
 EDUCATION_COLUMN_NAMES =  ["Grundskole","Gymnasial","Erhvervsfaglig","Kort_vider","Mellemlang_vider","Bachelor","Lang_vider","Uoplyst"]
 
 def get_cleaned_graph():
@@ -161,6 +161,64 @@ def plot_morans_2(data, VARIABLE, wk):
 
     # ready-implemented function for Moran scatterplot
     plot_moran(mi);
+
+def get_station_density_and_distance():
+    df = pd.read_csv('data/jan_2019.csv', encoding = 'unicode_escape')
+    stops = pd.read_csv('data/stops.txt')
+    shapefile = "data/DAGI/kommuneinddeling/kommuneinddeling.shp"
+    kommuner_df = gp.read_file(shapefile)
+    density_df = pd.read_csv('data/meta_density_2020.csv')
+
+    # We want all unique stop ids so we can merge them to the stops.txt, which has some discrepancies
+    start_ids = df[["StartStopPointNr", "StartSite"]].rename(columns={"StartStopPointNr": "stop_id", "StartSite": "stop_name"})
+    slut_ids = df[["SlutStopPointNr", "SlutSite"]].rename(columns={"SlutStopPointNr": "stop_id", "SlutSite": "stop_name"})
+    stop_ids = pd.concat([start_ids, slut_ids]).drop_duplicates()
+    stop_ids.stop_name = stop_ids.stop_name.str.lower() # removing uppercase for better merging
+    stops.stop_name = stops.stop_name.str.lower() # removing uppercase for better merging
+
+    #creating dictionary that maps ids in the jan_2019.csv to ids in stops.txt by station name
+    all_stops = pd.merge(stops.drop(columns=["stop_code", "stop_desc", "location_type", "parent_station", "wheelchair_boarding", "platform_code"]), stop_ids, on='stop_name')
+    incorrectid2correctid = all_stops.set_index('stop_id_y')['stop_id_x'].to_dict()
+
+    # Merging stops with incorrect ids
+    stops = stops.drop(columns=["stop_code", "stop_desc", "location_type", "parent_station", "wheelchair_boarding", "platform_code"]).set_index('stop_id')
+    stops.rename(index = incorrectid2correctid)
+
+    stops_gdf = gp.GeoDataFrame(
+        stops, geometry=gp.points_from_xy(stops.stop_lon, stops.stop_lat), crs= 'EPSG:4326').to_crs('EPSG:25832')
+
+    density_df = gp.GeoDataFrame(
+        density_df, geometry=gp.points_from_xy(density_df.longitude, density_df.latitude), crs= 'EPSG:4326')
+
+    density_df = density_df.drop(["longitude", "latitude"], axis=1).rename(columns={'dnk_general_2020':'density'}).to_crs('EPSG:25832') # convert to crs for distance calculation
+
+    denmark_density = gp.sjoin(density_df, kommuner_df[['geometry']], predicate = 'within').drop('index_right', axis=1) # removing points outside of denmark
+    station_density = gp.sjoin_nearest(denmark_density, stops_gdf, max_distance=10000, distance_col='distance')
+    station_density_coords = station_density.to_crs('EPSG:4326')
+    
+    return station_density_coords
+
+
+def plot_density_map(df, min_distance = 1400, min_density = 0.5, figname="figures/plot.png", dpi=300):
+    shapefile = "data/DAGI/kommuneinddeling/kommuneinddeling.shp"
+    kommuner_df = gp.read_file(shapefile)
+    far_away = df[df['distance'] > min_distance]
+    dense_points = df[df['density'] >= min_density]
+    fig, ax = plt.subplots(figsize = (16,16))
+    kommuner_df.to_crs(epsg=4326).plot(ax=ax, color='lightgrey')
+    far_away.plot(ax=ax, 
+                column = 'distance',
+                legend=True, 
+                markersize = 1, 
+                linewidth=0.4, 
+                legend_kwds={'shrink': 0.5}, 
+                alpha=0.6
+                )
+    dense_points.plot(ax=ax, color='red', legend=True, markersize=0.3, linewidth=0.2, legend_kwds={'shrink': 0.5}, alpha=0.6)
+    ax.set_axis_off()
+    plt.savefig(figname, dpi=dpi, bbox_inches='tight')
+    plt.show()
+
 KOMMUNE_CODE_NAME_DICT = {
     "0101": "København",
     "0147": "Frederiksberg",
