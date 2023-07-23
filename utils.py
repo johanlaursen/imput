@@ -104,6 +104,60 @@ def get_municipality_flow():
     
     return df_combined
 
+def create_local_flow():
+    df = pd.read_csv('data/jan_2019.csv', encoding = 'unicode_escape')
+    stops = pd.read_csv('data/stops.txt')
+    election_df = get_election_local_df()
+    election_df.to_crs("EPSG:4326", inplace=True)
+
+    stops = gp.GeoDataFrame(stops, geometry=gp.points_from_xy(stops.stop_lon, stops.stop_lat), crs = 'EPSG:4326')
+    stop_local = gp.sjoin(stops, election_df, how="inner", op="intersects").set_index("stop_id")
+    local_df = stop_local["kommune_valg"]
+    id2local = local_df.to_dict()
+
+    df['StartStopPointNr'] = df['StartStopPointNr'].map(id2local)
+    df['SlutStopPointNr'] = df['SlutStopPointNr'].map(id2local)
+    df = df.dropna()
+    # df['StartStopPointNr'] = df['StartStopPointNr'].astype(int)
+    # df['SlutStopPointNr'] = df['SlutStopPointNr'].astype(int)
+    # df['SUM_of_Personrejser'] = df['SUM_of_Personrejser'].astype(int)
+    local_flow = df.drop('RejseUge', axis=1).groupby(['StartStopPointNr', 'SlutStopPointNr']).sum('SUM_of_Personrejser').reset_index()
+    local_centroids = election_df.to_crs('EPSG:3035').set_index("kommune_valg").centroid #equal area projection
+    l_centroid_dict = local_centroids.to_dict()
+
+    local_flow = local_flow.rename(columns={"StartStopPointNr": "origin", "SlutStopPointNr": "destination", "SUM_of_Personrejser": "flow"})
+
+    # Fill all local pairs not found with 0 flow
+    ids = pd.unique(local_flow[['origin', 'destination']].values.ravel('K'))
+    new_df = pd.DataFrame({'origin': np.repeat(ids, len(ids)), 'destination': np.tile(ids, len(ids))})
+    # Merge new_df with df to get the corresponding flow values
+    local_flow = pd.merge(new_df, local_flow, on=['origin', 'destination'], how='left')
+    # Replace NaN values in the flow column with 0
+    local_flow['flow'].fillna(0, inplace=True)
+    local_population = election_df.reset_index().rename(columns = {'Persons18': 'population'})[["kommune_valg", "population"]]
+    local_population["population"] = local_population["population"].astype(int)
+    # Merge with origin
+    df_combined = pd.merge(local_flow, local_population, how="left", left_on="origin",right_on="kommune_valg")
+    df_combined = df_combined.rename(columns = {'population': 'origin_population'})
+    df_combined = df_combined.drop(columns=['kommune_valg'])  # drop the extra column
+    # is it extra???
+
+    # Merge with destination
+    df_combined = pd.merge(df_combined, local_population, how="left", left_on="destination",right_on="kommune_valg")
+    df_combined = df_combined.rename(columns = {'population': 'destination_population'})
+    df_combined = df_combined.drop(columns=['kommune_valg'])  # drop the extra column
+    df_combined['flow'] = df_combined['flow'].astype(int)
+    df_combined['distance'] = df_combined.apply(lambda row: l_centroid_dict[row['origin']].distance(l_centroid_dict[row['destination']]), axis=1)
+    df_combined['origin_centroid'] = df_combined['origin'].map(l_centroid_dict)
+    df_combined['destination_centroid'] = df_combined['destination'].map(l_centroid_dict)
+    df_combined.to_csv('data/local_flow.csv', index=False)
+
+    return df_combined
+def get_local_flow():
+    df = pd.read_csv('data/local_flow.csv')
+    return df
+
+    pass
 def get_election_df():
     df = pd.read_excel("data/cleaned_election_data.xlsx")
     df.drop(columns=["Unnamed: 0"], inplace=True)
@@ -131,6 +185,15 @@ def get_election_by_area(area="Kommune"):
             }).reset_index()
     df_elec["high_education"] = df_elec[EDUCATION_COLUMN_NAMES[3:7]].sum(axis=1)
     return df_elec
+
+def get_election_local_df():
+    boundaries_local = gp.read_file("data/DAGI/afstemningsomraade/afstemningsomraade.shp")
+    boundaries_local["kommune_valg"] = boundaries_local["kommunekod"].astype(int).astype(str) + "_" + boundaries_local["afstemning"].astype(int).astype(str)
+    df_elec_raw = get_election_df()
+    df_elec_raw["kommune_valg"] = df_elec_raw["Kommune"].astype(str) + "_" + df_elec_raw["Valgdistrikt_kode"].astype(str)
+    df_elec_bound_local = boundaries_local.merge(df_elec_raw, on="kommune_valg", how="left")
+
+    return df_elec_bound_local
 
 def plot_morans(VARIABLE_STD, VARIABLE_W, data):
     f, ax = plt.subplots(1, figsize=(9, 9))
