@@ -295,6 +295,54 @@ def plot_density_map(df, min_distance = 1400, min_density = 0.5, figname="figure
     plt.savefig(figname, dpi=dpi, bbox_inches='tight')
     plt.show()
 
+def lisa_plots(df, variable, wk ):
+    lisa = esda.Moran_Local(y = df[variable], 
+                            w = wk)
+    # Draw KDE line
+    ax = sns.kdeplot(lisa.Is)
+    # Add one small bar (rug) for each observation
+    # along horizontal axis
+    sns.rugplot(lisa.Is, ax=ax);
+    print(f"{(lisa.p_sim < 0.05).sum() * 100 / len(lisa.p_sim):.2f}% of the voting areas have a significant value for local Moran's I at p = 0.05")
+
+    df["p-sim"] = lisa.p_sim
+    # `1` if significant (at 5% confidence level), `0` otherwise
+    sig = 1 * (lisa.p_sim < 0.05)
+    # Assign significance flag to `db`
+    df["sig"] = sig
+    # Print top of the table to inspect
+    # df[["sig", "p-sim"]].head()
+
+    # Pick as part of a quadrant only significant polygons,
+    # assign `0` otherwise (Non-significant polygons)
+    spots = lisa.q * sig
+    # Mapping from value to name (as a dict)
+    spots_labels = {
+        0: "Non-Significant",
+        1: "HH",
+        2: "LH",
+        3: "LL",
+        4: "HL",
+    }
+    # Create column in `db` with labels for each polygon
+    df["labels"] = pd.Series(
+        # First initialise a Series using values and `db` index
+        spots,
+        index=df.index
+        # Then map each value to corresponding label based
+        # on the `spots_labels` mapping
+    ).map(spots_labels)
+    # Print top for inspection
+    df.labels.value_counts()
+
+    fig, ax = plt.subplots(1, figsize=(10,10))
+
+    lisa_cluster(lisa, df, ax=ax)
+
+    plt.title("LISA cluster, p = 5%");
+
+    plot_local_autocorrelation(lisa, df, variable);
+
 KOMMUNE_CODE_NAME_DICT = {
     "0101": "København",
     "0147": "Frederiksberg",
