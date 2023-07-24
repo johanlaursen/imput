@@ -76,7 +76,7 @@ def get_municipality_flow():
     
     #Coalesce all flow between municipalities into 1 row for each pair
     municipality_flow = df.drop('RejseUge', axis=1).groupby(['StartStopPointNr', 'SlutStopPointNr']).sum('SUM_of_Personrejser').reset_index()
-    municipality_centroids = kommuner_df.to_crs('EPSG:3035').set_index('kommunekod').centroid #equal area projection
+    municipality_centroids = kommuner_df.set_index('kommunekod').centroid #equal area projection
     m_centroid_dict = municipality_centroids.to_dict()
     
     municipality_flow = municipality_flow.rename(columns={"StartStopPointNr": "origin", "SlutStopPointNr": "destination", "SUM_of_Personrejser": "flow"})
