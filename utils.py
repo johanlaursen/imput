@@ -66,12 +66,15 @@ def get_municipality_flow():
     municipalities_df = stop_kommune['kommunekod']
     id2municipality = municipalities_df.to_dict()
     
+    # Change stop ids in trip dataframe to municipality id 
     df['StartStopPointNr'] = df['StartStopPointNr'].map(id2municipality)
     df['SlutStopPointNr'] = df['SlutStopPointNr'].map(id2municipality)
     df = df.dropna()
     df['StartStopPointNr'] = df['StartStopPointNr'].astype(int)
     df['SlutStopPointNr'] = df['SlutStopPointNr'].astype(int)
     df['SUM_of_Personrejser'] = df['SUM_of_Personrejser'].astype(int)
+    
+    #Coalesce all flow between municipalities into 1 row for each pair
     municipality_flow = df.drop('RejseUge', axis=1).groupby(['StartStopPointNr', 'SlutStopPointNr']).sum('SUM_of_Personrejser').reset_index()
     municipality_centroids = kommuner_df.to_crs('EPSG:3035').set_index('kommunekod').centroid #equal area projection
     m_centroid_dict = municipality_centroids.to_dict()
