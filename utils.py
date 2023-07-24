@@ -264,6 +264,51 @@ def get_station_density_and_distance():
     
     return station_density_coords
 
+def plot_cumsum(df, n = 0.9, m = 0.96, figname = 'figures/cumplot', dpi = 600):
+
+    df['density'] = df['density']/df['density'].sum() # make density sum to 1
+    
+    # Define bin edges for 'distance'
+    bin_edges = np.linspace(df['distance'].min(), df['distance'].max(), num=100)
+
+    # Use Pandas cut to bin 'distance' data
+    df['distance_binned'] = pd.cut(df['distance'], bins=bin_edges)
+
+    # Group by 'distance_binned' and calculate sum 'density'
+    grouped = df.groupby('distance_binned')['density'].sum().reset_index()
+
+    # Calculate cumulative sum of 'density'
+    grouped['cumulative_density'] = grouped['density'].cumsum()
+
+    # Calculate distance at which cumulative_density reaches 0.90
+    distance_at_90 = grouped[grouped['cumulative_density'] >= n]['distance_binned'].apply(lambda x: x.mid).iloc[0]
+    density_at_90 = grouped[grouped['cumulative_density'] >= n]['cumulative_density'].iloc[0]
+
+    distance_at_96 = grouped[grouped['cumulative_density'] >= m]['distance_binned'].apply(lambda x: x.mid).iloc[0]
+    density_at_96 = grouped[grouped['cumulative_density'] >= m]['cumulative_density'].iloc[0]
+
+    # Plot cumulative 'density' vs 'distance'
+    plt.plot(grouped['distance_binned'].apply(lambda x: x.mid), grouped['cumulative_density'])
+    plt.plot([0, distance_at_90], [n, n], color='grey', linestyle='--')  # horizontal line to intersection
+    plt.plot([distance_at_90, distance_at_90], [0, n], color='grey', linestyle='--')  # vertical line to intersection
+    plt.plot([0, distance_at_96], [m, m], color='grey', linestyle='--')  # horizontal line to intersection
+    plt.plot([distance_at_96, distance_at_96], [0, m], color='grey', linestyle='--')  # vertical line to intersection
+    plt.xlabel('Distance to nearest public stop')
+    plt.ylabel('Fraction of population')
+    plt.title('Fraction of population vs distance to nearest public stop')
+    yticks = plt.yticks()[0]
+    yticks = np.append(yticks, n)
+    yticks = np.append(yticks, m)
+    xticks = plt.xticks()[0]
+    xticks = np.append(xticks, 800)
+    xticks = np.append(xticks, 1400)
+    plt.yticks(yticks)
+    plt.xticks(xticks)
+    plt.xlim(0, 6000)
+    plt.ylim(0, 1.003)
+    plt.savefig(figname, dpi = dpi)
+    plt.show()
+
 def plot_hexbin(df, figname='figures/hexplot.png', dpi=600):
     # few density outliers prevent plotting
     df['density'] = p['density'].where(p['density'] <= 32, 32)
