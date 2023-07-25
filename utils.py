@@ -118,12 +118,11 @@ def create_local_flow():
     local_df = stop_local["kommune_valg"]
     id2local = local_df.to_dict()
 
+    # Change stop ids in trip dataframe to local id i.e kommune_valg
     df['StartStopPointNr'] = df['StartStopPointNr'].map(id2local)
     df['SlutStopPointNr'] = df['SlutStopPointNr'].map(id2local)
     df = df.dropna()
-    # df['StartStopPointNr'] = df['StartStopPointNr'].astype(int)
-    # df['SlutStopPointNr'] = df['SlutStopPointNr'].astype(int)
-    # df['SUM_of_Personrejser'] = df['SUM_of_Personrejser'].astype(int)
+    # Group all flow between local areas into 1 row for each pair of areas
     local_flow = df.drop('RejseUge', axis=1).groupby(['StartStopPointNr', 'SlutStopPointNr']).sum('SUM_of_Personrejser').reset_index()
     local_centroids = election_df.to_crs('EPSG:3035').set_index("kommune_valg").centroid #equal area projection
     l_centroid_dict = local_centroids.to_dict()
@@ -143,13 +142,13 @@ def create_local_flow():
     df_combined = pd.merge(local_flow, local_population, how="left", left_on="origin",right_on="kommune_valg")
     df_combined = df_combined.rename(columns = {'population': 'origin_population'})
     df_combined = df_combined.drop(columns=['kommune_valg'])  # drop the extra column
-    # is it extra???
 
     # Merge with destination
     df_combined = pd.merge(df_combined, local_population, how="left", left_on="destination",right_on="kommune_valg")
     df_combined = df_combined.rename(columns = {'population': 'destination_population'})
     df_combined = df_combined.drop(columns=['kommune_valg'])  # drop the extra column
     df_combined['flow'] = df_combined['flow'].astype(int)
+    # Get centroids for each local area
     df_combined['distance'] = df_combined.apply(lambda row: l_centroid_dict[row['origin']].distance(l_centroid_dict[row['destination']]), axis=1)
     df_combined['origin_centroid'] = df_combined['origin'].map(l_centroid_dict)
     df_combined['destination_centroid'] = df_combined['destination'].map(l_centroid_dict)
@@ -167,6 +166,8 @@ def get_election_df():
     return df
 
 def get_election_by_area(area="Kommune"):
+    """Returns a dataframe with election data grouped by area. Area can be either "Kommune" or "Storkreds"
+    Storkreds was not used in this project, but is included for completeness"""
     assert area in ["Kommune", "Storkreds"]
     df_elec = get_election_df()
     columns_to_keep = [area, "Persons18", "Persons65"] + EDUCATION_COLUMN_NAMES + ["with_children", "without_children", "Income_Mean"]
@@ -191,6 +192,7 @@ def get_election_by_area(area="Kommune"):
 
 def get_election_local_df():
     boundaries_local = gp.read_file("data/DAGI/afstemningsomraade/afstemningsomraade.shp")
+    # Create unique ids based upon kommune code and afstemning code
     boundaries_local["kommune_valg"] = boundaries_local["kommunekod"].astype(int).astype(str) + "_" + boundaries_local["afstemning"].astype(int).astype(str)
     df_elec_raw = get_election_df()
     df_elec_raw["kommune_valg"] = df_elec_raw["Kommune"].astype(str) + "_" + df_elec_raw["Valgdistrikt_kode"].astype(str)
@@ -199,6 +201,7 @@ def get_election_local_df():
     return df_elec_bound_local
 
 def plot_morans(VARIABLE_STD, VARIABLE_W, data):
+    """util functions to plot morans"""
     f, ax = plt.subplots(1, figsize=(9, 9))
 
     # regression plot (function from seaborn):
@@ -208,7 +211,7 @@ def plot_morans(VARIABLE_STD, VARIABLE_W, data):
     plt.axvline(0, c='k', alpha=0.5)
     plt.axhline(0, c='k', alpha=0.5)
 
-    # OBS! The placement of the text is customized to this specific plot and the range of the axes
+    # add labels to the axes, label locations work for our data
     plt.text(3, 1.5, "HH", fontsize=25)
     plt.text(3, -0.7, "HL", fontsize=25)
     plt.text(-1, 2, "LH", fontsize=25)
@@ -217,7 +220,7 @@ def plot_morans(VARIABLE_STD, VARIABLE_W, data):
     plt.show()
 
 def plot_morans_2(data, VARIABLE, wk):
-    # Calculate Moran's I
+    """second morans util function that uses plot_moran from splot"""
 
     mi = esda.Moran(data[VARIABLE], wk)
 
