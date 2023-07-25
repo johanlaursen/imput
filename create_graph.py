@@ -9,7 +9,7 @@ def main():
     feed = pt.get_representative_feed(path)
     # start and end are used to only select part of the data
     start = 0*60*60  # 0:00
-    end = 36*60*60  # 36:00 because data is retarded
+    end = 36*60*60  # 36:00 because data is dumb and has times ending after 24
 
     # Change pt.get_representative_feed to get all service_ids instead of just some
     
@@ -20,7 +20,7 @@ def main():
     relabel_dic = {node:int(node[6:]) for node in G.nodes()}
     G = nx.relabel_nodes(G, relabel_dic, copy=False)
 
-    with open("rejsekort_graph_test.gpickle", "wb") as f:
+    with open("rejsekort_graph_cleaned.gpickle", "wb") as f:
         pickle.dump(G, f)
 
 if __name__ == "__main__":
