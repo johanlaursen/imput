@@ -265,8 +265,10 @@ def get_station_density_and_distance():
     
     return station_density_coords
 
-def plot_cumsum(df, n = 0.9, m = 0.96, figname = 'figures/cumplot', dpi = 600):
+def plot_cumsum(df_original, n = 0.9, m = 0.96, figname = 'figures/cumplot', dpi = 600):
 
+    df = df_original.copy()
+    
     df['density'] = df['density']/df['density'].sum() # make density sum to 1
     
     # Define bin edges for 'distance'
@@ -310,12 +312,15 @@ def plot_cumsum(df, n = 0.9, m = 0.96, figname = 'figures/cumplot', dpi = 600):
     plt.savefig(figname, dpi = dpi)
     plt.show()
 
-def plot_hexbin(df, figname='figures/hexplot.png', dpi=600):
+def plot_hexbin(df_original, figname='figures/hexplot.png', dpi=600):
+    
+    df = df_original.copy()
+    
     # few density outliers prevent plotting
-    df['density'] = p['density'].where(p['density'] <= 35, 35)
+    df['density'] = df['density'].where(df['density'] <= 35, 35)
 
     # Create Hexbin plot with log color scale
-    hb = plt.hexbin(p['distance'], p['density'], gridsize=20, bins='log', cmap='Greens')
+    hb = plt.hexbin(df['distance'], df['density'], gridsize=20, bins='log', cmap='Greens')
     cb = plt.colorbar(hb, label='log10(N)')
 
     plt.xlabel('Distance to bus stop (m)')
