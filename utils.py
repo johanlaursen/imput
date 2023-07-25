@@ -9,7 +9,6 @@ from collections import defaultdict
 from geopy.distance import geodesic
 from tqdm import tqdm
 from sklearn.neighbors import BallTree
-import math
 import seaborn as sns
 import esda
 from splot.esda import (
