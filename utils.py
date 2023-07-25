@@ -1,8 +1,5 @@
 import pandas as pd # used to load individual files
-import numpy as np # not currently used
-import datetime as dt # not currently used
-#from geopy.distance import geodesic might be used at some point
-#import peartree as pt # used to construct network
+import numpy as np 
 import matplotlib.pyplot as plt
 import osmnx as ox # visualisation library for networks
 import pickle
