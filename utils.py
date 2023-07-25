@@ -347,6 +347,7 @@ def plot_density_map(df, min_distance = 1400, min_density = 0.5, figname="figure
     plt.show()
 
 def lisa_plots(df, variable, wk ):
+    """util function to plot lisa plots and get final results"""
     lisa = esda.Moran_Local(y = df[variable], 
                             w = wk)
     # Draw KDE line
@@ -354,6 +355,7 @@ def lisa_plots(df, variable, wk ):
     # Add one small bar (rug) for each observation
     # along horizontal axis
     sns.rugplot(lisa.Is, ax=ax);
+    # Get percentage of voting areas that have statistically significant LISA values
     print(f"{(lisa.p_sim < 0.05).sum() * 100 / len(lisa.p_sim):.2f}% of the voting areas have a significant value for local Moran's I at p = 0.05")
 
     df["p-sim"] = lisa.p_sim
@@ -361,8 +363,6 @@ def lisa_plots(df, variable, wk ):
     sig = 1 * (lisa.p_sim < 0.05)
     # Assign significance flag to `db`
     df["sig"] = sig
-    # Print top of the table to inspect
-    # df[["sig", "p-sim"]].head()
 
     # Pick as part of a quadrant only significant polygons,
     # assign `0` otherwise (Non-significant polygons)
@@ -394,6 +394,7 @@ def lisa_plots(df, variable, wk ):
 
     plot_local_autocorrelation(lisa, df, variable);
 
+# Not used
 KOMMUNE_CODE_NAME_DICT = {
     "0101": "København",
     "0147": "Frederiksberg",
