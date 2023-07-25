@@ -318,25 +318,30 @@ def plot_hexbin(df_original, figname='figures/hexplot.png', dpi=600):
     
     # few density outliers prevent plotting
     df['density'] = df['density'].where(df['density'] <= 35, 35)
+    # Focus on distance most people would be willing to walk
+    df['distance'] = df['distance'].where(df['distance'] <= 1500, 1500)
 
     # Create Hexbin plot with log color scale
-    hb = plt.hexbin(df['distance'], df['density'], gridsize=20, bins='log', cmap='Greens')
+    hb = plt.hexbin(df['distance'], df['density'], gridsize=15, bins='log', cmap='Greens')
     cb = plt.colorbar(hb, label='log10(N)')
 
-    plt.xlabel('Distance to bus stop (m)')
-    plt.ylabel('Population density')
-    plt.title('Density vs. Distance to bus stop')
+    plt.xlabel('Distance to nearest public stop (m)')
+    plt.ylabel('Population density (people / 30 m$^2$)')
+    plt.title('Density vs. Distance to nearest public stop')
+
     plt.savefig(figname, dpi=dpi)
     plt.show()
 
 def plot_density_map(df, min_distance = 1400, min_density = 0.5, figname="figures/plot.png", dpi=300):
     shapefile = "data/DAGI/kommuneinddeling/kommuneinddeling.shp"
     kommuner_df = gp.read_file(shapefile)
-    far_away = df[df['distance'] > min_distance]
+    far_away = df.copy()
+    far_away = far_away[far_away['distance'] > min_distance]
+    far_away['distance'] = far_away['distance'].where(far_away['distance'] <= 4000, 4000)
     dense_points = df[df['density'] >= min_density]
     fig, ax = plt.subplots(figsize = (16,16))
     kommuner_df.to_crs(epsg=4326).plot(ax=ax, color='lightgrey')
-    far_away.plot(ax=ax, 
+    far_away.plot(ax=ax,
                 column = 'distance',
                 legend=True, 
                 markersize = 1, 
@@ -344,7 +349,8 @@ def plot_density_map(df, min_distance = 1400, min_density = 0.5, figname="figure
                 legend_kwds={'shrink': 0.5}, 
                 alpha=0.6
                 )
-    dense_points.plot(ax=ax, color='red', legend=True, markersize=0.3, linewidth=0.2, legend_kwds={'shrink': 0.5}, alpha=0.6)
+    # too many points, sampling to speed plotting
+    dense_points.sample(n=len(dense_points)//5).plot(ax=ax, color='red', markersize=0.1, linewidth=0.1, alpha=0.4)
     ax.set_axis_off()
     plt.savefig(figname, dpi=dpi, bbox_inches='tight')
     plt.show()
